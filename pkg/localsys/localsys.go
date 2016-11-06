@@ -19,14 +19,17 @@ const (
 var (
 	// okFormats are the accepted formats for the files that we want to rename.
 	okFormats = []string{jpeg, jpg, bmp, png}
+
+	errPathIsEmpty  = errors.New("Path is empty!")
+	errPathIsNotAbs = errors.New("Path is not absolute!")
 )
 
 func validatePath(localPath string) error {
 	if localPath == "" {
-		return errors.New("Path is empty!")
+		return errPathIsEmpty
 	}
 	if !path.IsAbs(localPath) {
-		return errors.New("Path is not absolute!")
+		return errPathIsNotAbs
 	}
 	if _, err := os.Stat(localPath); err != nil {
 		return err
@@ -71,19 +74,19 @@ func delegator(path string, info os.FileInfo, err error) error {
 	}
 
 	if fileMode.IsRegular() && validateExt(info.Name()) {
+
 		return nil
 	}
 	return nil
 }
 
-// validateExtension checks if the file contains a valid extention.
+// validateExt checks if the file contains a valid extention.
 func validateExt(fileName string) bool {
 	fileExt := fileName[strings.LastIndex(fileName, ".")+1:]
 	for _, format := range okFormats {
-		if fileExt != format {
-			continue
+		if fileExt == format {
+			return true
 		}
-		return false
 	}
-	return true
+	return false
 }

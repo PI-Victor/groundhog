@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/PI-Victor/groundhog/pkg/system"
+	"github.com/PI-Victor/groundhog/pkg/localsys"
 )
 
 var (
