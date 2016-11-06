@@ -2,11 +2,11 @@ package localsys
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -18,8 +18,7 @@ const (
 
 var (
 	// okFormats are the accepted formats for the files that we want to rename.
-	okFormats = []string{jpeg, jpg, bmp, png}
-
+	okFormats       = []string{jpeg, jpg, bmp, png}
 	errPathIsEmpty  = errors.New("Path is empty!")
 	errPathIsNotAbs = errors.New("Path is not absolute!")
 )
@@ -47,21 +46,10 @@ func Run(localPath string) {
 	if err != nil {
 		log.Fatalf("An error occured while reading the %s directory: %s", localPath, err)
 	}
-	if err = controller(dir); err != nil {
+
+	if err := filepath.Walk(dir, delegator); err != nil {
 		log.Fatal(err)
 	}
-}
-
-// controller dispatches a new delegator in a goroutine for each directory/file
-// it encounters.
-func controller(dir string) error {
-	// i want a channel that returns errors to the controller, up the stack, from
-	// the spawned delegators. a new delegator is spawned only if the file is a
-	// directory.
-
-	//errOutput := make(chan error)
-	go filepath.Walk(dir, delegator)
-	return nil
 }
 
 // delegator is called for each file in the specified directory and analyses if
@@ -69,24 +57,27 @@ func controller(dir string) error {
 // itself recursively and spawn a new delegator.
 func delegator(path string, info os.FileInfo, err error) error {
 	fileMode := info.Mode()
+	outErr := make(chan error)
 	if fileMode.IsDir() {
-		go filepath.Walk(path, delegator)
+		go func() {
+			outErr <- filepath.Walk(path, delegator)
+		}()
+		return fmt.Errorf("%v", outErr)
 	}
-
 	if fileMode.IsRegular() && validateExt(info.Name()) {
-
 		return nil
 	}
 	return nil
 }
 
-// validateExt checks if the file contains a valid extention.
+// validateExt checks if the image file contains a valid extention.
 func validateExt(fileName string) bool {
-	fileExt := fileName[strings.LastIndex(fileName, ".")+1:]
 	for _, format := range okFormats {
-		if fileExt == format {
-			return true
+		match, err := filepath.Match("*."+format, fileName)
+		if err != nil || !match {
+			continue
 		}
+		return true
 	}
 	return false
 }
